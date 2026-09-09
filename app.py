@@ -2,10 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# Configuração da página Vogon no iOS/Navegador
+# URL direta da Logo PNG da Vogon Group
+LOGO_URL = "https://yata-apix-320e5167-9d0d-4143-a25a-28eeb06af758.s3-object.locaweb.com.br/e88068311e2a46c2a3e029206757eb75.png"
+
+# Configuração da página Vogon no iOS/Navegador com a logo no ícone da aba
 st.set_page_config(
     page_title="Vogon Group - Calculadora de Chuveiros",
-    page_icon="💧"
+    page_icon=LOGO_URL,
     layout="wide"
 )
 
@@ -17,10 +20,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("💧 Vogon Group — Engine de Vazão de Chuveiros")
-st.caption("Dimensionamento Técnico e Consumo de Água — Linha VG Series")
+# CABEÇALHO COM A LOGO OFICIAL
+col_logo, col_titulo = st.columns([1, 3])
 
-# 1. MATRIZ DE DADOS - LINHA VG PADRÃO (Antiga FL, agora com código Vogon)
+with col_logo:
+    st.image(LOGO_URL, use_container_width=True)
+
+with col_titulo:
+    st.title("Vogon Group — Engine de Vazão de Chuveiros")
+    st.caption("Dimensionamento Técnico e Consumo de Água — Linha VG Series")
+
+st.divider()
+
+# 1. MATRIZ DE DADOS - LINHA VG PADRÃO
 dados_vazao_padrao = {
     "Modelo": [
         "VG-4/1", "VG-4/2", "VG-4/3", "VG-4/4", "VG-4/5", "VG-4/6", "VG-4/7", "VG-4/8", 
@@ -80,13 +92,12 @@ else: # LINHA VG-JATO SÓLIDO (0.8mm, 1.0mm, 1.5mm)
     saida_mm = dict_diam[modelo_jato]
     modelo_sel = modelo_jato.split(" ")[0]
     
-    # Cálculo de vazão para Jato Sólido: Q (L/min) = K * d^2 * sqrt(P)
-    # K constante hidráulica típica para bicos de agulha com Cd = 0.62
+    # Cálculo de vazão para Jato Sólido
     vazao_un_lmin = 0.044 * (saida_mm ** 2) * np.sqrt(pressao_val * 0.980665)
 
 num_bicos = st.sidebar.number_input("Quantidade de Bicos no Chuveiro", value=32, step=1)
 horas_dia = st.sidebar.slider("Horas de Operação por Dia", min_value=1, max_value=24, value=24)
-custo_m3 = st.sidebar.number_input("Custo da Água (R$ por m³)", value=20.00, step=1.00) # Padrão SP com esgoto
+custo_m3 = st.sidebar.number_input("Custo da Água (R$ por m³)", value=20.00, step=1.00)
 
 # CÁLCULOS TÉCNICOS
 vazao_total_lmin = vazao_un_lmin * num_bicos
