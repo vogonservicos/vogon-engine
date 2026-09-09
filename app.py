@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 # Configuração da página Vogon no iOS/Navegador
 st.set_page_config(
@@ -17,15 +18,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💧 Vogon Group — Engine de Vazão de Chuveiros")
-st.caption("Cálculo Técnico de Consumo de Água baseado em Tabelas de Engenharia")
+st.caption("Dimensionamento Técnico e Consumo de Água — Linha VG Series")
 
-# MATRIZ DE DADOS EXTRAÍDA DA TABELA TÉCNICA (Pressões convertidas para Chaves String)
-dados_vazao = {
+# 1. MATRIZ DE DADOS - LINHA VG PADRÃO (Antiga FL, agora com código Vogon)
+dados_vazao_padrao = {
     "Modelo": [
-        "FL-4/1", "FL-4/2", "FL-4/3", "FL-4/4", "FL-4/5", "FL-4/6", "FL-4/7", "FL-4/8", 
-        "FL-4/9", "FL-4/10", "FL-4/11", "FL-4/12", "FL-4/13", "FL-4/14", "FL-4/15", 
-        "FL-4/16", "FL-4/17", "FL-4/18", "FL-4/19", "FL-4/20", "FL-4/21", "FL-4/22", 
-        "FL-4/23", "FL-4/24", "FL-4/25", "FL-4/26"
+        "VG-4/1", "VG-4/2", "VG-4/3", "VG-4/4", "VG-4/5", "VG-4/6", "VG-4/7", "VG-4/8", 
+        "VG-4/9", "VG-4/10", "VG-4/11", "VG-4/12", "VG-4/13", "VG-4/14", "VG-4/15", 
+        "VG-4/16", "VG-4/17", "VG-4/18", "VG-4/19", "VG-4/20", "VG-4/21", "VG-4/22", 
+        "VG-4/23", "VG-4/24", "VG-4/25", "VG-4/26"
     ],
     "Saída_mm": [
         0.66, 0.91, 1.1, 1.3, 1.4, 1.6, 1.8, 2.0, 2.4, 2.8, 3.6, 4.0, 4.4, 
@@ -44,25 +45,48 @@ dados_vazao = {
     "35.0": [1.8, 3.5, 4.0, 5.4, 8.7, 8.1, 10.8, 13.5, 20.0, 27.0, 40.0, 54.0, 68.0, 81.0, 94.0, 135.0, 162.0, 205.0, 270.0, 540.0, 680.0, 780.0, 1010.0, 1350.0, 2020.0, 2700.0]
 }
 
-df_vazao = pd.DataFrame(dados_vazao)
+df_vazao_padrao = pd.DataFrame(dados_vazao_padrao)
 
-# SEÇÃO DE PARÂMETROS
+# SEÇÃO LATERAL - PARÂMETROS
 st.sidebar.header("Parâmetros do Chuveiro")
 
-modelo_sel = st.sidebar.selectbox("Selecione o Modelo do Bico", df_vazao["Modelo"])
+tipo_bico = st.sidebar.radio(
+    "Selecione a Linha do Bico Vogon",
+    options=["Série VG - Tabela Padrão", "Série VG-JATO (Jato Sólido / Agulha)"]
+)
 
-# Opções de pressão como Texto/String para bater com as colunas do DataFrame
-opcoes_pressao = ["0.5", "1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0", "10.0", "20.0", "35.0"]
-pressao_sel = st.sidebar.select_slider("Pressão de Operação (kg/cm²)", options=opcoes_pressao, value="5.0")
+if tipo_bico == "Série VG - Tabela Padrão":
+    modelo_sel = st.sidebar.selectbox("Modelo do Bico Vogon", df_vazao_padrao["Modelo"])
+    opcoes_pressao = ["0.5", "1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0", "10.0", "20.0", "35.0"]
+    pressao_sel = st.sidebar.select_slider("Pressão de Operação (kg/cm²)", options=opcoes_pressao, value="5.0")
+    
+    linha_bico = df_vazao_padrao[df_vazao_padrao["Modelo"] == modelo_sel].iloc[0]
+    vazao_un_lmin = float(linha_bico[pressao_sel])
+    saida_mm = float(linha_bico["Saída_mm"])
+    pressao_val = float(pressao_sel)
+
+else: # LINHA VG-JATO SÓLIDO (0.8mm, 1.0mm, 1.5mm)
+    modelo_jato = st.sidebar.selectbox(
+        "Diâmetro do Furo / Bico Jato Sólido",
+        options=["VG-JATO-0.8 (Ø 0.8 mm)", "VG-JATO-1.0 (Ø 1.0 mm)", "VG-JATO-1.5 (Ø 1.5 mm)"]
+    )
+    pressao_val = st.sidebar.slider("Pressão de Operação (kg/cm²)", min_value=1.0, max_value=35.0, value=15.0, step=0.5)
+    
+    dict_diam = {
+        "VG-JATO-0.8 (Ø 0.8 mm)": 0.8,
+        "VG-JATO-1.0 (Ø 1.0 mm)": 1.0,
+        "VG-JATO-1.5 (Ø 1.5 mm)": 1.5
+    }
+    saida_mm = dict_diam[modelo_jato]
+    modelo_sel = modelo_jato.split(" ")[0]
+    
+    # Cálculo de vazão para Jato Sólido: Q (L/min) = K * d^2 * sqrt(P)
+    # K constante hidráulica típica para bicos de agulha com Cd = 0.62
+    vazao_un_lmin = 0.044 * (saida_mm ** 2) * np.sqrt(pressao_val * 0.980665)
 
 num_bicos = st.sidebar.number_input("Quantidade de Bicos no Chuveiro", value=32, step=1)
 horas_dia = st.sidebar.slider("Horas de Operação por Dia", min_value=1, max_value=24, value=24)
-custo_m3 = st.sidebar.number_input("Custo da Água (R$ por m³)", value=4.50, step=0.50)
-
-# BUSCAR VAZÃO NA TABELA DE FORMA SEGURA
-linha_bico = df_vazao[df_vazao["Modelo"] == modelo_sel].iloc[0]
-vazao_un_lmin = float(linha_bico[pressao_sel])
-saida_mm = float(linha_bico["Saída_mm"])
+custo_m3 = st.sidebar.number_input("Custo da Água (R$ por m³)", value=20.00, step=1.00) # Padrão SP com esgoto
 
 # CÁLCULOS TÉCNICOS
 vazao_total_lmin = vazao_un_lmin * num_bicos
@@ -72,26 +96,26 @@ consumo_mensal_m3 = consumo_diario_m3 * 30
 custo_mensal_brl = consumo_mensal_m3 * custo_m3
 
 # EXIBIÇÃO DE RESULTADOS
-st.subheader("📊 Resultados do Dimensionamento")
+st.subheader("📊 Resultados do Dimensionamento Vogon")
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Diâmetro de Saída", f"{saida_mm} mm")
-col2.metric("Vazão por Bico", f"{vazao_un_lmin} L/min")
-col3.metric("Vazão Total Chuveiro", f"{vazao_total_lmin:.1f} L/min")
-col4.metric("Vazão em m³/h", f"{vazao_total_m3h:.2f} m³/h")
+col1.metric("Modelo Selecionado", modelo_sel)
+col2.metric("Diâmetro de Saída", f"{saida_mm:.2f} mm")
+col3.metric("Vazão por Bico", f"{vazao_un_lmin:.2f} L/min")
+col4.metric("Vazão Total (m³/h)", f"{vazao_total_m3h:.2f} m³/h")
 
 st.divider()
 
-st.subheader("💰 Impacto Financeiro e Consumo")
+st.subheader("💰 Consumo Financeiro e Operacional")
 c1, c2, c3 = st.columns(3)
 c1.metric("Consumo Diário", f"{consumo_diario_m3:.1f} m³")
 c2.metric("Consumo Mensal (30 dias)", f"{consumo_mensal_m3:.1f} m³")
 c3.metric("Custo Estimado Mensal", f"R$ {custo_mensal_brl:,.2f}")
 
-# SIMULAÇÃO DE EFICIÊNCIA VOGON
 st.divider()
+
 st.subheader("🌱 Oportunidade de Otimização Vogon")
-st.write("Sistemas de chuveiros Vogon com oscilação de alta precisão e bicos autolimpantes permitem substituir a vazão contínua por ciclos otimizados.")
+st.write("Sistemas de chuveiros Vogon com oscilação de alta precisão e bicos de agulha autolimpantes evitam entupimentos e otimizam o consumo mantendo a força de impacto necessária.")
 
 economia_perc = st.slider("Percentual de Redução Esperado com Tecnologia Vogon (%)", 5, 30, 15)
 economia_m3_mes = consumo_mensal_m3 * (economia_perc / 100.0)
@@ -103,12 +127,12 @@ st.success(f"💡 **Economia Estimada Vogon:** Redução de **{economia_m3_mes:.
 if st.button("Copiar Memória de Cálculo para Proposta"):
     st.code(f"""
 === MEMÓRIA DE CÁLCULO - CHUVEIRO VOGON GROUP ===
-Modelo do Bico: {modelo_sel} (Ø Saída: {saida_mm} mm)
-Pressão de Operação: {pressao_sel} kg/cm²
+Linha de Bico: {tipo_bico}
+Modelo / Ref: {modelo_sel} (Ø Saída: {saida_mm:.2f} mm)
+Pressão de Operação: {pressao_val:.1f} kg/cm²
 Quantidade de Bicos: {num_bicos}
-Vazão Unitária: {vazao_un_lmin} L/min
-Vazão Total da Linha: {vazao_total_lmin:.1f} L/min ({vazao_total_m3h:.2f} m³/h)
+Vazão Unitária por Bico: {vazao_un_lmin:.2f} L/min
+Vazão Total do Chuveiro: {vazao_total_lmin:.1f} L/min ({vazao_total_m3h:.2f} m³/h)
 Consumo Mensal Estimado: {consumo_mensal_m3:.1f} m³
-Custo Mensal Estimado: R$ {custo_mensal_brl:,.2f}
+Custo Mensal Estimado (SP): R$ {custo_mensal_brl:,.2f}
     """, language="text")
-    
