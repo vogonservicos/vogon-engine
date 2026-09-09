@@ -5,7 +5,7 @@ import pandas as pd
 LOGO_URL = "https://yata-apix-320e5167-9d0d-4143-a25a-28eeb06af758.s3-object.locaweb.com.br/e88068311e2a46c2a3e029206757eb75.png"
 
 st.set_page_config(
-    page_title="Vogon Group - Doctoring Specialist",
+    page_title="Vogon Group - Doctoring system Specialist",
     page_icon=LOGO_URL,
     layout="wide"
 )
