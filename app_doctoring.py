@@ -23,78 +23,133 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🔒 1. BANCO DE DADOS MULTIUSUÁRIO VOGON GROUP
+# 🔒 1. BANCO DE DADOS DE GESTORES E TÉCNICOS VOGON GROUP
 # ==============================================================================
 USUARIOS_CADASTRADOS = {
-    # TÉCNICOS VOGON
-    "tecnico.vogon": {"nome": "Técnico de Campo Vogon", "senha": "vogon2026@doctoring", "perfil": "tecnico", "cargo": "Especialista de Processo"},
-    "joao.silva": {"nome": "João Silva", "senha": "vogon@joao2026", "perfil": "tecnico", "cargo": "Técnico de Manutenção"},
+    # USUÁRIO MASTER 1
+    "jucieliorodrigues@vogongroup.com.br": {
+        "nome": "Jucielio Rodrigues",
+        "senha": "1008",
+        "perfil": "gestor_master",
+        "cargo": "Gestor Master / Direção",
+        "primeiro_acesso": True
+    },
     
-    # GESTORES VOGON
-    "gestor.vogon": {"nome": "Eng. Chefe Vogon", "senha": "vogon@admin2026", "perfil": "gestor", "cargo": "Gerente de Engenharia"},
+    # USUÁRIO MASTER 2
+    "izagomesrodrigues@vogongroup.com.br": {
+        "nome": "Iza Gomes Rodrigues",
+        "senha": "1008",
+        "perfil": "gestor_master",
+        "cargo": "Gestora Master / Direção",
+        "primeiro_acesso": True
+    },
     
-    # CLIENTES (APROVADORES EXTERNOS)
-    "klabin.cliente": {"nome": "Carlos Oliveira", "senha": "klabin@aprovacao", "perfil": "cliente", "cargo": "Gerente de Planta (Klabin)"},
-    "suzano.cliente": {"nome": "Mariana Costa", "senha": "suzano@aprovacao", "perfil": "cliente", "cargo": "Coordenadora de Manutenção (Suzano)"}
+    # USUÁRIO GESTOR
+    "rogeriomedeiros@vogongroup.com.br": {
+        "nome": "Rogério Medeiros",
+        "senha": "1008",
+        "perfil": "gestor",
+        "cargo": "Gestor de Operações",
+        "primeiro_acesso": True
+    },
+    
+    # TÉCNICO DE CAMPO (Exemplo de Apoio)
+    "tecnico.vogon@vogongroup.com.br": {
+        "nome": "Técnico de Campo Vogon",
+        "senha": "vogon2026@doctoring",
+        "perfil": "tecnico",
+        "cargo": "Especialista de Processo",
+        "primeiro_acesso": False
+    }
 }
 
 # ==============================================================================
-# 🔑 2. GERENCIADOR DE SESSÃO E TELA DE LOGIN
+# 🔑 2. GERENCIADOR DE SESSÃO, LOGIN E PRIMEIRA SENHA
 # ==============================================================================
 if 'logado' not in st.session_state:
     st.session_state['logado'] = False
 if 'usuario_dados' not in st.session_state:
     st.session_state['usuario_dados'] = None
+if 'usuario_id' not in st.session_state:
+    st.session_state['usuario_id'] = None
 if 'historico_intervencao' not in st.session_state:
     st.session_state['historico_intervencao'] = []
 
+# TELA DE LOGIN PRINCIPAL
 if not st.session_state['logado']:
     st.markdown("""
         <div style='text-align: center; padding: 20px;'>
             <h2 style='color: #0E2F56; margin-bottom: 0px;'>VOGON GROUP LTDA</h2>
             <h4 style='color: #555; margin-top: 5px;'>Sistema Corporativo — Doctoring Specialist</h4>
-            <p style='font-size: 14px; color: #777;'>Acesso restrito para equipe técnica e clientes autorizados.</p>
+            <p style='font-size: 14px; color: #777;'>Acesso restrito para equipe técnica e gestores autorizados.</p>
         </div>
     """, unsafe_allow_html=True)
     
     col_centered = st.columns([1, 2, 1])
     with col_centered[1]:
-        with st.form("form_login_multiusuario"):
-            st.subheader("🔑 Autenticação")
-            user_input = st.text_input("Usuário / E-mail").strip().lower()
+        with st.form("form_login_vogon"):
+            st.subheader("🔑 Autenticação de Usuário")
+            user_input = st.text_input("E-mail Corporativo").strip().lower()
             pass_input = st.text_input("Senha", type="password")
             btn_entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
             
             if btn_entrar:
                 if user_input in USUARIOS_CADASTRADOS and USUARIOS_CADASTRADOS[user_input]["senha"] == pass_input:
                     st.session_state['logado'] = True
+                    st.session_state['usuario_id'] = user_input
                     st.session_state['usuario_dados'] = USUARIOS_CADASTRADOS[user_input]
-                    st.success(f"Bem-vindo, {USUARIOS_CADASTRADOS[user_input]['nome']}!")
                     st.rerun()
                 else:
-                    st.error("❌ Usuário ou senha inválidos.")
+                    st.error("❌ E-mail ou senha incorretos.")
     st.stop()
 
-# ==============================================================================
-# 👤 3. BARRA LATERAL E IDENTIFICAÇÃO DO USUÁRIO LOGADO
-# ==============================================================================
+# MODAL OBRIGATÓRIO DE TROCA DE SENHA NO PRIMEIRO ACESSO
 usr = st.session_state['usuario_dados']
+usr_id = st.session_state['usuario_id']
 
+if usr.get("primeiro_acesso", False):
+    st.markdown("<h3 style='color: #C62828; text-align: center;'>🔒 Redefinição de Senha Obrigatória (1º Acesso)</h3>", unsafe_allow_html=True)
+    st.info(f"Olá, **{usr['nome']}**! Por motivos de segurança corporativa Vogon, cadastre sua nova senha de acesso antes de prosseguir.")
+    
+    col_senha = st.columns([1, 2, 1])
+    with col_senha[1]:
+        with st.form("form_primeiro_acesso"):
+            nova_senha = st.text_input("Digite sua Nova Senha (mínimo 4 dígitos)", type="password")
+            confirma_senha = st.text_input("Confirme a Nova Senha", type="password")
+            btn_salvar_senha = st.form_submit_button("Atualizar Senha e Acessar", use_container_width=True)
+            
+            if btn_salvar_senha:
+                if len(nova_senha.strip()) < 4:
+                    st.error("⚠️ A senha deve conter pelo menos 4 dígitos.")
+                elif nova_senha != confirma_senha:
+                    st.error("⚠️ As senhas digitadas não coincidem.")
+                elif nova_senha == "1008":
+                    st.error("⚠️ A nova senha não pode ser igual à senha provisória inicial (1008).")
+                else:
+                    USUARIOS_CADASTRADOS[usr_id]["senha"] = nova_senha
+                    USUARIOS_CADASTRADOS[usr_id]["primeiro_acesso"] = False
+                    st.session_state['usuario_dados']['primeiro_acesso'] = False
+                    st.success("✅ Senha alterada com sucesso!")
+                    st.rerun()
+    st.stop()
+
+# BARRA LATERAL - EXIBIÇÃO DO USUÁRIO LOGADO
 st.sidebar.markdown(f"""
-    <div style='background-color: #E8EEF5; padding: 10px; border-radius: 6px; margin-bottom: 15px;'>
-        <p style='margin: 0; font-size: 12px; color: #555;'>Usuário Autenticado:</p>
+    <div style='background-color: #E8EEF5; padding: 12px; border-radius: 6px; margin-bottom: 15px;'>
+        <p style='margin: 0; font-size: 11px; color: #555;'>Usuário Autenticado:</p>
         <p style='margin: 0; font-weight: bold; color: #0E2F56;'>{usr['nome']}</p>
-        <p style='margin: 0; font-size: 11px; color: #333;'>{usr['cargo']}</p>
+        <p style='margin: 0; font-size: 11px; color: #008000; font-weight: bold;'>{usr['cargo']}</p>
     </div>
 """, unsafe_allow_html=True)
 
 if st.sidebar.button("🚪 Sair do Sistema (Logout)", use_container_width=True):
     st.session_state['logado'] = False
     st.session_state['usuario_dados'] = None
+    st.session_state['usuario_id'] = None
     st.rerun()
 
 # ==============================================================================
-# ⚙️ 4. CORPO PRINCIPAL DO APLICATIVO DOCTORING
+# ⚙️ 3. CORPO PRINCIPAL DO APLICATIVO DOCTORING
 # ==============================================================================
 c_logo, c_title = st.columns([1, 3])
 with c_logo:
@@ -132,7 +187,7 @@ else:
 
 posicao_detalhada = st.sidebar.text_input("Posição Exata da Intervenção", value="Cilindro Secador 78")
 
-# TABELA DE TOLERÂNCIA DE ENGENHARIA (AMPLIADA ATÉ 32°)
+# TABELA DE TOLERÂNCIA DE ENGENHARIA (RANGE EXPANDIDO ATÉ 32°)
 def obter_regras_engenharia(grupo):
     if "Formadora" in grupo:
         return {"ang_min": 20, "ang_max": 25, "press_max": 200, "ref_ang": "20° a 25°", "ref_press": "100 a 200 N/m", "mat": "Sintética (UHMW / Epoxy)"}
@@ -178,8 +233,7 @@ if necessita_aprovacao:
     </div>
     """, unsafe_allow_html=True)
     
-    # Se o usuário logado for Gestor ou Cliente, ele pode auto-aprovar
-    if usr['perfil'] in ['gestor', 'cliente']:
+    if usr['perfil'] in ['gestor', 'gestor_master']:
         aprovador_nome = f"{usr['nome']} ({usr['cargo']}) - Auto-aprovado via Login"
         st.success(f"✅ **Aprovação Automática:** Logado como **{aprovador_nome}**")
     else:
