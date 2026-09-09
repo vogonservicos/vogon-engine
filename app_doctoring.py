@@ -15,7 +15,8 @@ st.markdown("""
     <style>
     .vogon-header { font-size: 22px; font-weight: bold; color: #0E2F56; }
     .stButton>button { background-color: #0E2F56; color: white; border-radius: 6px; }
-    .card-box { background-color: #F4F6F9; padding: 15px; border-radius: 8px; border-left: 5px solid #0E2F56; }
+    .card-box { background-color: #F4F6F9; padding: 20px; border-radius: 8px; border-left: 5px solid #0E2F56; }
+    .photo-label { font-size: 13px; font-weight: bold; color: #0E2F56; text-align: center; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -32,7 +33,7 @@ st.divider()
 # MENUS DE SELEÇÃO NO SIDEBAR
 st.sidebar.header("1. Identificação do Cliente & Máquina")
 cliente = st.sidebar.text_input("Nome do Cliente / Usina", value="Klabin / Suzano")
-maquina = st.sidebar.text_input("Identificação da Máquina (ex: MP-02)", value="MP-01")
+maquina = st.sidebar.text_input("Identificação da Máquina", value="MP-01")
 tecnico = st.sidebar.text_input("Técnico / Responsável Vogon", value="Eng. Vogon")
 
 st.sidebar.divider()
@@ -112,7 +113,7 @@ def obter_dados_tecnicos(tipo, pos):
             ],
             "dicas": "Monitorar o ângulo do bisel (bevel) da lâmina e a espessura do filme químico (coating). Mantenha o oscilador ativo."
         }
-    else: # Calandra / Limpeza Yankee / Outros
+    else:
         return {
             "angulo": "25° a 28°",
             "pressao": "200 a 300 N/m (2.0 a 3.0 bar)",
@@ -137,39 +138,67 @@ col_a.metric("Ângulo Ideal de Raspagem", dados_pos["angulo"])
 col_b.metric("Pressão Linear Recomendada", dados_pos["pressao"])
 col_c.metric("Material Base Indicado", dados_pos["lamina_mat"])
 
-st.info(f"💡 **Sugestões de Melhoria e Ponto de Atenção Vogon:** {dados_pos['dicas']}")
+st.info(f"💡 **Sugestões de Melhoria Vogon:** {dados_pos['dicas']}")
 
 st.divider()
 
-# SELEÇÃO DE LÂMINAS DE MERCADO (5 MODELOS)
-st.subheader("🔪 Lâminas Compatíveis & Equivalência de Mercado (Benchmarking)")
-st.write("Seleção dos 5 modelos recomendados para esta posição (Vogon vs Concorrentes):")
-
+# SELEÇÃO DE LÂMINAS DE MERCADO (BENCHMARKING)
+st.subheader("🔪 Lâminas Compatíveis & Equivalência de Mercado")
 for lam in dados_pos["laminas_5"]:
     st.write(f"- {lam}")
 
 st.divider()
 
-# FORMULÁRIO DE INTERVENÇÃO E RELATÓRIO DE CAMPO
-st.subheader("📝 Relatório de Intervenção Diária de Campo")
-st.write("Preencha os dados da intervenção realizada na máquina para compilar o documento oficial:")
+# REGISTRO FOTOGRÁFICO DE CAMPO (4 FOTOS)
+st.subheader("📸 Registro Fotográfico do Ajuste de Ângulos (LA / LC)")
+st.write("Anexe as imagens capturadas em campo pelo iPhone/iPad para comprovação técnica:")
+
+st.markdown("#### 🔴 1. Fotos ANTES do Ajuste")
+col_antes_la, col_antes_lc = st.columns(2)
+
+with col_antes_la:
+    img_antes_la = st.file_uploader("Foto ANTES — Lado Acionamento (LA)", type=["png", "jpg", "jpeg"], key="u_antes_la")
+    if img_antes_la:
+        st.image(img_antes_la, caption="ANTES — Lado Acionamento (LA)", use_container_width=True)
+
+with col_antes_lc:
+    img_antes_lc = st.file_uploader("Foto ANTES — Lado Comando (LC)", type=["png", "jpg", "jpeg"], key="u_antes_lc")
+    if img_antes_lc:
+        st.image(img_antes_lc, caption="ANTES — Lado Comando (LC)", use_container_width=True)
+
+st.markdown("#### 🟢 2. Fotos DEPOIS do Ajuste")
+col_depois_la, col_depois_lc = st.columns(2)
+
+with col_depois_la:
+    img_depois_la = st.file_uploader("Foto DEPOIS — Lado Acionamento (LA)", type=["png", "jpg", "jpeg"], key="u_depois_la")
+    if img_depois_la:
+        st.image(img_depois_la, caption="DEPOIS — Lado Acionamento (LA)", use_container_width=True)
+
+with col_depois_lc:
+    img_depois_lc = st.file_uploader("Foto DEPOIS — Lado Comando (LC)", type=["png", "jpg", "jpeg"], key="u_depois_lc")
+    if img_depois_lc:
+        st.image(img_depois_lc, caption="DEPOIS — Lado Comando (LC)", use_container_width=True)
+
+st.divider()
+
+# FORMULÁRIO DE INTERVENÇÃO
+st.subheader("📝 Detalhes da Intervenção Diária de Campo")
 
 col_f1, col_f2 = st.columns(2)
 
 with col_f1:
-    servico_feito = st.text_area("O que foi FEITO hoje na intervenção?", value="Ajuste do ângulo do porta-lâminas DST, substituição da mangueira de acionamento pneumático e troca da lâmina usada.")
-    pecas_substituidas = st.text_area("Peças SUBSTITUÍDAS hoje:", value="1x Lâmina Vogon Inox-Precision 4500mm;\n2x Mangueira de pressão 1/4 NPT.")
+    servico_feito = st.text_area("O que foi FEITO hoje na intervenção?", value="Ajuste do ângulo do porta-lâminas DST, aferição da pressão e substituição da lâmina gasta.")
+    pecas_substituidas = st.text_area("Peças SUBSTITUÍDAS hoje:", value="1x Lâmina Vogon Inox-Precision 4500mm;\n2x Mangueiras de acionamento pneumático.")
 
 with col_f2:
-    falta_fazer = st.text_area("O que FALTA FAZER / Pendências:", value="Revisar alinhamento do motor do oscilador na próxima parada programada.")
-    pecas_providenciar = st.text_area("Peças a serem PROVIDENCIADAS / Cotar:", value="1x Conjunto de raspadores de silicone para tubo oscilante;\n1x Kit de reparo do cilindro pneumático.")
+    falta_fazer = st.text_area("O que FALTA FAZER / Pendências:", value="Acompanhar alinhamento no próximo arranque da fábrica.")
+    pecas_providenciar = st.text_area("Peças a serem PROVIDENCIADAS / Cotar:", value="1x Kit de vedação do tubo oscilante.")
 
-# GERADOR DE DOCUMENTO FINAL COM TIMBRADO VOGON
+# GERADOR DE DOCUMENTO FINAL TIMBRADO
 st.divider()
-if st.button("📄 Gerar Relatório de Campo Unificado Vogon"):
+if st.button("📄 Gerar Relatório Completo com Fotos"):
     st.subheader("📄 RELATÓRIO TÉCNICO DE INTERVENÇÃO - VOGON GROUP")
     
-    # SIMULAÇÃO DO PAPEL TIMBRADO VOGON EM TELA
     st.markdown(f"""
     <div class="card-box">
     <div style="text-align: center;">
@@ -181,25 +210,55 @@ if st.button("📄 Gerar Relatório de Campo Unificado Vogon"):
         </p>
     </div>
     <hr>
-    <p><b>CLIENTE:</b> {cliente} | <b>MÁQUINA:</b> {maquina} | <b>DATA:</b> 09/09/2026</p>
+    <p><b>CLIENTE:</b> {cliente} | <b>MÁQUINA:</b> {maquina}</p>
     <p><b>RESPONSÁVEL TÉCNICO:</b> {tecnico}</p>
     <p><b>POSIÇÃO AVALIADA:</b> {posicao} ({tipo_papel})</p>
     <hr>
-    <h4>1. PARÂMETROS TÉCNICOS AJUSTADOS:</h4>
+    <h4>1. PARÂMETROS TÉCNICOS CONFIGURADOS:</h4>
     <ul>
         <li><b>Ângulo Definido:</b> {dados_pos['angulo']}</li>
         <li><b>Pressão de Trabalho:</b> {dados_pos['pressao']}</li>
         <li><b>Material da Lâmina:</b> {dados_pos['lamina_mat']}</li>
     </ul>
     
-    <h4>2. RESUMO DA INTERVENÇÃO DIÁRIA:</h4>
-    <p><b>Atividades Realizadas:</b><br>{servico_feito}</p>
+    <h4>2. ATIVIDADES REALIZADAS & PEÇAS:</h4>
+    <p><b>Serviço Concluído:</b><br>{servico_feito}</p>
     <p><b>Peças Substituídas:</b><br>{pecas_substituidas}</p>
-    
-    <h4>3. PENDÊNCIAS E AÇÕES FUTURAS:</h4>
+
+    <h4>3. PENDÊNCIAS & PROVEDORIA:</h4>
     <p><b>Ações Pendentes:</b><br>{falta_fazer}</p>
-    <p><b>Peças a Providenciar (Almoxarifado / Compras):</b><br>{pecas_providenciar}</p>
-    <hr>
-    <p style="font-size: 11px; text-align: center;">Documento gerado via Vogon Doctoring Specialist App — Tecnologia Industrial Vogon Group.</p>
+    <p><b>Peças a Providenciar:</b><br>{pecas_providenciar}</p>
     </div>
     """, unsafe_allow_html=True)
+
+    # REPOSITÓRIO VISUAL NO RELATÓRIO
+    st.markdown("### 📸 Evidências Fotográficas do Ajuste de Ângulos")
+    
+    rc1, rc2 = st.columns(2)
+    with rc1:
+        st.caption("🔴 **ANTES — Lado Acionamento (LA)**")
+        if img_antes_la:
+            st.image(img_antes_la, use_container_width=True)
+        else:
+            st.write("*(Foto não anexada)*")
+
+        st.caption("🟢 **DEPOIS — Lado Acionamento (LA)**")
+        if img_depois_la:
+            st.image(img_depois_la, use_container_width=True)
+        else:
+            st.write("*(Foto não anexada)*")
+
+    with rc2:
+        st.caption("🔴 **ANTES — Lado Comando (LC)**")
+        if img_antes_lc:
+            st.image(img_antes_lc, use_container_width=True)
+        else:
+            st.write("*(Foto não anexada)*")
+
+        st.caption("🟢 **DEPOIS — Lado Comando (LC)**")
+        if img_depois_lc:
+            st.image(img_depois_lc, use_container_width=True)
+        else:
+            st.write("*(Foto não anexada)*")
+
+    st.caption("Documento gerado via Vogon Doctoring Specialist App — Tecnologia Industrial Vogon Group.")
