@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import io
+import urllib.parse
+from fpdf import FPDF
 
 # URL da Logo Oficial Vogon Group
 LOGO_URL = "https://yata-apix-320e5167-9d0d-4143-a25a-28eeb06af758.s3-object.locaweb.com.br/e88068311e2a46c2a3e029206757eb75.png"
@@ -19,14 +21,14 @@ st.markdown("""
     .stButton>button { background-color: #0E2F56; color: white; border-radius: 6px; }
     .card-box { background-color: #F4F6F9; padding: 20px; border-radius: 8px; border-left: 5px solid #0E2F56; }
     .alert-box { background-color: #FFEBEE; padding: 15px; border-radius: 8px; border-left: 5px solid #C62828; margin-bottom: 15px; }
+    .manager-box { background-color: #E3F2FD; padding: 15px; border-radius: 8px; border: 1px solid #90CAF9; margin-bottom: 20px; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🔒 1. BANCO DE DADOS DE GESTORES E TÉCNICOS VOGON GROUP
+# 🔒 1. BANCO DE DADOS DE GESTORES E TÉCNICOS
 # ==============================================================================
 USUARIOS_CADASTRADOS = {
-    # USUÁRIO MASTER 1
     "jucieliorodrigues@vogongroup.com.br": {
         "nome": "Jucielio Rodrigues",
         "senha": "1008",
@@ -34,8 +36,6 @@ USUARIOS_CADASTRADOS = {
         "cargo": "Gestor Master / Direção",
         "primeiro_acesso": True
     },
-    
-    # USUÁRIO MASTER 2
     "izagomesrodrigues@vogongroup.com.br": {
         "nome": "Iza Gomes Rodrigues",
         "senha": "1008",
@@ -43,8 +43,6 @@ USUARIOS_CADASTRADOS = {
         "cargo": "Gestora Master / Direção",
         "primeiro_acesso": True
     },
-    
-    # USUÁRIO GESTOR
     "rogeriomedeiros@vogongroup.com.br": {
         "nome": "Rogério Medeiros",
         "senha": "1008",
@@ -52,8 +50,6 @@ USUARIOS_CADASTRADOS = {
         "cargo": "Gestor de Operações",
         "primeiro_acesso": True
     },
-    
-    # TÉCNICO DE CAMPO (Exemplo de Apoio)
     "tecnico.vogon@vogongroup.com.br": {
         "nome": "Técnico de Campo Vogon",
         "senha": "vogon2026@doctoring",
@@ -63,9 +59,7 @@ USUARIOS_CADASTRADOS = {
     }
 }
 
-# ==============================================================================
-# 🔑 2. GERENCIADOR DE SESSÃO, LOGIN E PRIMEIRA SENHA
-# ==============================================================================
+# GERENCIADOR DE SESSÃO
 if 'logado' not in st.session_state:
     st.session_state['logado'] = False
 if 'usuario_dados' not in st.session_state:
@@ -75,7 +69,7 @@ if 'usuario_id' not in st.session_state:
 if 'historico_intervencao' not in st.session_state:
     st.session_state['historico_intervencao'] = []
 
-# TELA DE LOGIN PRINCIPAL
+# TELA DE LOGIN
 if not st.session_state['logado']:
     st.markdown("""
         <div style='text-align: center; padding: 20px;'>
@@ -103,7 +97,7 @@ if not st.session_state['logado']:
                     st.error("❌ E-mail ou senha incorretos.")
     st.stop()
 
-# MODAL OBRIGATÓRIO DE TROCA DE SENHA NO PRIMEIRO ACESSO
+# MODAL DE PRIMEIRO ACESSO
 usr = st.session_state['usuario_dados']
 usr_id = st.session_state['usuario_id']
 
@@ -133,7 +127,7 @@ if usr.get("primeiro_acesso", False):
                     st.rerun()
     st.stop()
 
-# BARRA LATERAL - EXIBIÇÃO DO USUÁRIO LOGADO
+# BARRA LATERAL
 st.sidebar.markdown(f"""
     <div style='background-color: #E8EEF5; padding: 12px; border-radius: 6px; margin-bottom: 15px;'>
         <p style='margin: 0; font-size: 11px; color: #555;'>Usuário Autenticado:</p>
@@ -149,14 +143,73 @@ if st.sidebar.button("🚪 Sair do Sistema (Logout)", use_container_width=True):
     st.rerun()
 
 # ==============================================================================
-# ⚙️ 3. CORPO PRINCIPAL DO APLICATIVO DOCTORING
+# 📄 GERADOR DE PDF TIMBRADO VOGON
+# ==============================================================================
+def gerar_pdf_timbrado(reg):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Cabeçalho Fiscais Vogon
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_text_color(14, 47, 86)
+    pdf.cell(0, 8, "VOGON GROUP LTDA", ln=True, align="C")
+    
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 5, "CNPJ MATRIZ: 42.730.025/0001-90 | FILIAL: 42.730.025/0002-71", ln=True, align="C")
+    pdf.cell(0, 5, "Av. Guilherme George, 1364 - Jundiapeba, Mogi das Cruzes - SP | (11) 97637-8235", ln=True, align="C")
+    pdf.cell(0, 5, "WWW.VOGONGROUP.COM.BR", ln=True, align="C")
+    pdf.line(10, 32, 200, 32)
+    pdf.ln(8)
+    
+    # Título do Documento
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(14, 47, 86)
+    pdf.cell(0, 7, f"RELATORIO TECNICO DE INTERVENCAO - {reg['Cliente']}", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 6, f"Data: {reg['Data']} | Maquina: {reg['Maquina']} | Tecnico: {reg['Tecnico Logado']}", ln=True)
+    pdf.cell(0, 6, f"Posicao Avaliada: {reg['Posicao Exata (Raspador)']} ({reg['Tipo Papel']})", ln=True)
+    pdf.ln(4)
+    
+    # Parametros
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 6, "1. PARAMETROS TECNICOS DE RASPAGEM:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 5, f" - Angulo Ajustado: {reg['Angulo Real (°)']} deg | Pressao Aplicada: {reg['Pressao Real (N/m)']} N/m", ln=True)
+    pdf.cell(0, 5, f" - Status de Tolerancia: {reg['Status Tolerancia']}", ln=True)
+    pdf.cell(0, 5, f" - Responsavel Aprovacao: {reg['Aprovador Responsavel']}", ln=True)
+    pdf.ln(4)
+    
+    # Lamina
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 6, "2. ESPECIFICACAO DA LAMINA INSTALADA:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 5, f" - Modelo/Material: {reg['Lamina Instalada']} ({reg['Material Lamina']})", ln=True)
+    pdf.cell(0, 5, f" - Dimensoes (LxExC): {reg['Dimensao Total (LxExC mm)']} mm", ln=True)
+    pdf.cell(0, 5, f" - Tipo de Rebitagem: {reg['Tipo Rebitagem']}", ln=True)
+    pdf.ln(4)
+
+    # Servico e Peças
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 6, "3. DETALHAMENTO DA INTERVENCAO:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 5, f"Servico Realizado: {reg['Servico Realizado']}")
+    pdf.multi_cell(0, 5, f"Pecas Substituidas: {reg['Pecas Substituidas']}")
+    pdf.multi_cell(0, 5, f"Pendencias: {reg['Pendencias']}")
+    pdf.multi_cell(0, 5, f"Pecas a Providenciar: {reg['Pecas a Providenciar']}")
+    
+    return bytes(pdf.output())
+
+# ==============================================================================
+# ⚙️ CORPO PRINCIPAL DO APP
 # ==============================================================================
 c_logo, c_title = st.columns([1, 3])
 with c_logo:
     st.image(LOGO_URL, use_container_width=True)
 with c_title:
     st.title("Vogon Group — Doctoring Specialist")
-    st.caption("Sistema de Diagnóstico, Validação de Tolerâncias e Histórico em Excel")
+    st.caption("Sistema de Diagnóstico, Validação de Tolerâncias e Gestão Integrada")
 
 st.divider()
 
@@ -187,7 +240,6 @@ else:
 
 posicao_detalhada = st.sidebar.text_input("Posição Exata da Intervenção", value="Cilindro Secador 78")
 
-# TABELA DE TOLERÂNCIA DE ENGENHARIA (RANGE EXPANDIDO ATÉ 32°)
 def obter_regras_engenharia(grupo):
     if "Formadora" in grupo:
         return {"ang_min": 20, "ang_max": 25, "press_max": 200, "ref_ang": "20° a 25°", "ref_press": "100 a 200 N/m", "mat": "Sintética (UHMW / Epoxy)"}
@@ -288,7 +340,7 @@ with c_f2:
     falta_fazer = st.text_area("Pendências / Falta Fazer:", value="Monitorar limpeza do tubo na próxima parada.")
     pecas_providenciar = st.text_area("Peças a Providenciar:", value="1x Kit de vedação de suporte.")
 
-# SALVAR REGISTRO
+# SALVAR E DISPARAR NO WHATSAPP
 st.divider()
 bloquear_botao = necessita_aprovacao and (len(aprovador_nome.strip()) == 0)
 
@@ -301,52 +353,104 @@ if st.button("➕ Salvar Registro desta Posição na Planilha do Dia", disabled=
     registro = {
         "Data": data_hoje.strftime("%d/%m/%Y"),
         "Cliente": cliente,
-        "Máquina": maquina,
-        "Técnico Logado": usr['nome'],
+        "Maquina": maquina,
+        "Tecnico Logado": usr['nome'],
         "Tipo Papel": tipo_papel,
         "Seção": grupo_posicao,
         "Posição Exata (Raspador)": posicao_detalhada,
-        "Ângulo Real (°)" : angulo_ajustado,
-        "Pressão Real (N/m)": pressao_ajustada,
-        "Status Tolerância": "FORA DO PADRÃO (APROVADO)" if necessita_aprovacao else "PADRÃO OK",
-        "Aprovador Responsável": status_aprovacao_txt,
-        "Lâmina Instalada": lamina_nome,
-        "Material Lâmina": lamina_material,
-        "Dimensão Total (LxExC mm)": f"{lam_largura} x {lam_espessura} x {lam_comprimento}",
+        "Angulo Real (°)": angulo_ajustado,
+        "Pressao Real (N/m)": pressao_ajustada,
+        "Status Tolerancia": "FORA DO PADRÃO (APROVADO)" if necessita_aprovacao else "PADRÃO OK",
+        "Aprovador Responsavel": status_aprovacao_txt,
+        "Lamina Instalada": lamina_nome,
+        "Material Lamina": lamina_material,
+        "Dimensao Total (LxExC mm)": f"{lam_largura} x {lam_espessura} x {lam_comprimento}",
         "Tipo Rebitagem": rebitagem_detalhe,
         "Serviço Realizado": servico_feito,
-        "Peças Substituídas": pecas_substituidas,
-        "Pendências": falta_fazer,
-        "Peças a Providenciar": pecas_providenciar,
-        "Foto Antes LA": "Anexada" if img_antes_la else "Ausente",
-        "Foto Depois LA": "Anexada" if img_depois_la else "Ausente",
-        "Foto Antes LC": "Anexada" if img_antes_lc else "Ausente",
-        "Foto Depois LC": "Anexada" if img_depois_lc else "Ausente"
+        "Pecas Substituidas": pecas_substituidas,
+        "Pendencias": falta_fazer,
+        "Pecas a Providenciar": pecas_providenciar
     }
     st.session_state['historico_intervencao'].append(registro)
-    st.success(f"✅ Intervenção na posição **'{posicao_detalhada}'** gravada! Status: **{status_aprovacao_txt}**")
+    st.success(f"✅ Intervenção na posição **'{posicao_detalhada}'** gravada no histórico do dia!")
 
-# GERAR E EXPORTAR PLANILHA EXCEL
+    # MENSAGEM AUTOMÁTICA PARA WHATSAPP
+    texto_wsp = f"""*VOGON GROUP - RELATÓRIO DE INTERVENÇÃO*
+*Cliente:* {cliente} | *Máquina:* {maquina}
+*Data:* {data_hoje.strftime("%d/%m/%Y")} | *Técnico:* {usr['nome']}
+*Posição:* {posicao_detalhada}
+
+*Ângulo Ajustado:* {angulo_ajustado}°
+*Pressão Aplicada:* {pressao_ajustada} N/m
+*Status:* {status_aprovacao_txt}
+
+*Lâmina:* {lamina_nome} ({lam_largura}x{lam_espessura}x{lam_comprimento} mm) - Rebitagem {rebitagem_detalhe}
+*Serviço:* {servico_feito}
+*Peças Substituídas:* {pecas_substituidas}
+*Pendências:* {falta_fazer}
+
+_Gerado via Vogon Doctoring Specialist App_"""
+
+    wsp_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(texto_wsp)}"
+    
+    st.markdown(f"""
+        <a href="{wsp_url}" target="_blank">
+            <button style="background-color: #25D366; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+                📲 Enviar Resumo do Serviço via WhatsApp
+            </button>
+        </a>
+    """, unsafe_allow_html=True)
+
+# ==============================================================================
+# 📂 CENTRAL DE GESTÃO & BOTÕES DE AÇÃO DOS GESTORES
+# ==============================================================================
 if len(st.session_state['historico_intervencao']) > 0:
     st.divider()
-    st.subheader("📊 Histórico de Intervenções Acumuladas Hoje")
     
+    # PAINEL EXCLUSIVO PARA GESTORES
+    if usr['perfil'] in ['gestor', 'gestor_master']:
+        st.markdown("""
+        <div class="manager-box">
+            <h3 style="color: #0E2F56; margin-top: 0px;">📂 Painel de Ação da Gestão Vogon</h3>
+            <p style="font-size: 13px; color: #333;">Como Gestor, você tem acesso imediato para exportar os documentos completos (PDF e Excel) acumulados no dia.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.subheader("📊 Histórico de Intervenções Acumuladas Hoje")
     df_historico = pd.DataFrame(st.session_state['historico_intervencao'])
     
-    colunas_visiveis = ["Data", "Cliente", "Máquina", "Posição Exata (Raspador)", "Ângulo Real (°)", "Status Tolerância", "Aprovador Responsável", "Lâmina Instalada"]
+    colunas_visiveis = ["Data", "Cliente", "Maquina", "Posição Exata (Raspador)", "Angulo Real (°)", "Status Tolerancia", "Lamina Instalada"]
     st.dataframe(df_historico[colunas_visiveis], use_container_width=True)
 
     data_str = data_hoje.strftime("%Y-%m-%d")
-    nome_arquivo_excel = f"Vogon_{cliente.replace(' ', '_')}_{maquina.replace(' ', '_')}_{data_str}.xlsx"
+    nome_base = f"{cliente.replace(' ', '_')}_{maquina.replace(' ', '_')}_{data_str}"
 
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_historico.to_excel(writer, index=False, sheet_name='Intervençoes_Vogon')
-    processed_data = output.getvalue()
+    col_btn1, col_btn2 = st.columns(2)
 
-    st.download_button(
-        label=f"📥 Baixar Planilha Excel Oficial ({nome_arquivo_excel})",
-        data=processed_data,
-        file_name=nome_arquivo_excel,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    with col_btn1:
+        # GERAR PLANILHA EXCEL
+        output_excel = io.BytesIO()
+        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+            df_historico.to_excel(writer, index=False, sheet_name='Intervençoes_Vogon')
+        excel_bytes = output_excel.getvalue()
+
+        st.download_button(
+            label=f"📊 Baixar Planilha Excel ({nome_base}.xlsx)",
+            data=excel_bytes,
+            file_name=f"{nome_base}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+    with col_btn2:
+        # GERAR PDF TIMBRADO DA ÚLTIMA INTERVENÇÃO
+        ultimo_registro = st.session_state['historico_intervencao'][-1]
+        pdf_bytes = gerar_pdf_timbrado(ultimo_registro)
+
+        st.download_button(
+            label=f"📄 Baixar Relatório PDF Timbrado ({nome_base}.pdf)",
+            data=pdf_bytes,
+            file_name=f"{nome_base}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
