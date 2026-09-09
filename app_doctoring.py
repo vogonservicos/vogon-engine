@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import io
 
-# URL da Logo da Vogon Group
+# URL da Logo Oficial Vogon Group
 LOGO_URL = "https://yata-apix-320e5167-9d0d-4143-a25a-28eeb06af758.s3-object.locaweb.com.br/e88068311e2a46c2a3e029206757eb75.png"
 
 st.set_page_config(
@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilização Vogon
+# Estilização Visual Vogon
 st.markdown("""
     <style>
     .vogon-header { font-size: 22px; font-weight: bold; color: #0E2F56; }
@@ -22,11 +22,80 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# INICIALIZAR PLANILHA/BANCO NA SESSÃO DO APP
+# ==============================================================================
+# 🔒 1. BANCO DE DADOS MULTIUSUÁRIO VOGON GROUP
+# ==============================================================================
+USUARIOS_CADASTRADOS = {
+    # TÉCNICOS VOGON
+    "tecnico.vogon": {"nome": "Técnico de Campo Vogon", "senha": "vogon2026@doctoring", "perfil": "tecnico", "cargo": "Especialista de Processo"},
+    "joao.silva": {"nome": "João Silva", "senha": "vogon@joao2026", "perfil": "tecnico", "cargo": "Técnico de Manutenção"},
+    
+    # GESTORES VOGON
+    "gestor.vogon": {"nome": "Eng. Chefe Vogon", "senha": "vogon@admin2026", "perfil": "gestor", "cargo": "Gerente de Engenharia"},
+    
+    # CLIENTES (APROVADORES EXTERNOS)
+    "klabin.cliente": {"nome": "Carlos Oliveira", "senha": "klabin@aprovacao", "perfil": "cliente", "cargo": "Gerente de Planta (Klabin)"},
+    "suzano.cliente": {"nome": "Mariana Costa", "senha": "suzano@aprovacao", "perfil": "cliente", "cargo": "Coordenadora de Manutenção (Suzano)"}
+}
+
+# ==============================================================================
+# 🔑 2. GERENCIADOR DE SESSÃO E TELA DE LOGIN
+# ==============================================================================
+if 'logado' not in st.session_state:
+    st.session_state['logado'] = False
+if 'usuario_dados' not in st.session_state:
+    st.session_state['usuario_dados'] = None
 if 'historico_intervencao' not in st.session_state:
     st.session_state['historico_intervencao'] = []
 
-# CABEÇALHO
+if not st.session_state['logado']:
+    st.markdown("""
+        <div style='text-align: center; padding: 20px;'>
+            <h2 style='color: #0E2F56; margin-bottom: 0px;'>VOGON GROUP LTDA</h2>
+            <h4 style='color: #555; margin-top: 5px;'>Sistema Corporativo — Doctoring Specialist</h4>
+            <p style='font-size: 14px; color: #777;'>Acesso restrito para equipe técnica e clientes autorizados.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col_centered = st.columns([1, 2, 1])
+    with col_centered[1]:
+        with st.form("form_login_multiusuario"):
+            st.subheader("🔑 Autenticação")
+            user_input = st.text_input("Usuário / E-mail").strip().lower()
+            pass_input = st.text_input("Senha", type="password")
+            btn_entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
+            
+            if btn_entrar:
+                if user_input in USUARIOS_CADASTRADOS and USUARIOS_CADASTRADOS[user_input]["senha"] == pass_input:
+                    st.session_state['logado'] = True
+                    st.session_state['usuario_dados'] = USUARIOS_CADASTRADOS[user_input]
+                    st.success(f"Bem-vindo, {USUARIOS_CADASTRADOS[user_input]['nome']}!")
+                    st.rerun()
+                else:
+                    st.error("❌ Usuário ou senha inválidos.")
+    st.stop()
+
+# ==============================================================================
+# 👤 3. BARRA LATERAL E IDENTIFICAÇÃO DO USUÁRIO LOGADO
+# ==============================================================================
+usr = st.session_state['usuario_dados']
+
+st.sidebar.markdown(f"""
+    <div style='background-color: #E8EEF5; padding: 10px; border-radius: 6px; margin-bottom: 15px;'>
+        <p style='margin: 0; font-size: 12px; color: #555;'>Usuário Autenticado:</p>
+        <p style='margin: 0; font-weight: bold; color: #0E2F56;'>{usr['nome']}</p>
+        <p style='margin: 0; font-size: 11px; color: #333;'>{usr['cargo']}</p>
+    </div>
+""", unsafe_allow_html=True)
+
+if st.sidebar.button("🚪 Sair do Sistema (Logout)", use_container_width=True):
+    st.session_state['logado'] = False
+    st.session_state['usuario_dados'] = None
+    st.rerun()
+
+# ==============================================================================
+# ⚙️ 4. CORPO PRINCIPAL DO APLICATIVO DOCTORING
+# ==============================================================================
 c_logo, c_title = st.columns([1, 3])
 with c_logo:
     st.image(LOGO_URL, use_container_width=True)
@@ -36,17 +105,15 @@ with c_title:
 
 st.divider()
 
-# 1. IDENTIFICAÇÃO DO CLIENTE & MÁQUINA
+# PARAMETRIZAÇÃO GERAL
 st.sidebar.header("1. Identificação Geral")
 cliente = st.sidebar.text_input("Nome do Cliente / Usina", value="Klabin")
 maquina = st.sidebar.text_input("Identificação da Máquina", value="MP-01")
 data_hoje = st.sidebar.date_input("Data da Intervenção", datetime.today())
-tecnico = st.sidebar.text_input("Técnico / Responsável Vogon", value="Eng. Vogon")
+tecnico = st.sidebar.text_input("Técnico Responsável", value=usr['nome'])
 
 st.sidebar.divider()
-
-# 2. POSIÇÃO DE INSTALAÇÃO
-st.sidebar.header("2. Posição da Máquina & Intervenção")
+st.sidebar.header("2. Posição da Máquina")
 tipo_papel = st.sidebar.selectbox("Tipo de Papel", ["Papel Plano (Embalagem/E&I/Cartão)", "Papel Tissue (Higiênico/Toalha)"])
 
 if tipo_papel == "Papel Plano (Embalagem/E&I/Cartão)":
@@ -63,14 +130,9 @@ else:
         "Rolo de Guia de Tela / Feltro"
     ])
 
-# CAMPO DE POSIÇÃO DETALHADA
-posicao_detalhada = st.sidebar.text_input(
-    "Posição Exata da Intervenção", 
-    value="Cilindro Secador 78",
-    help="Ex: Rolo superior 4ª prensa, Cilindro Secador 78, Rolo de Sucção 1"
-)
+posicao_detalhada = st.sidebar.text_input("Posição Exata da Intervenção", value="Cilindro Secador 78")
 
-# REGRAS TÉCNICAS E AMARRAÇÃO DE RANGE DE TOLERÂNCIA (ATÉ 32 GRAUS AMPLIOU)
+# TABELA DE TOLERÂNCIA DE ENGENHARIA (AMPLIADA ATÉ 32°)
 def obter_regras_engenharia(grupo):
     if "Formadora" in grupo:
         return {"ang_min": 20, "ang_max": 25, "press_max": 200, "ref_ang": "20° a 25°", "ref_press": "100 a 200 N/m", "mat": "Sintética (UHMW / Epoxy)"}
@@ -80,23 +142,21 @@ def obter_regras_engenharia(grupo):
         return {"ang_min": 25, "ang_max": 32, "press_max": 250, "ref_ang": "25° a 32°", "ref_press": "150 a 250 N/m", "mat": "Aço Carbono / Fibra de Carbono"}
     elif "Yankee" in grupo:
         return {"ang_min": 16, "ang_max": 22, "press_max": 450, "ref_ang": "16° a 22°", "ref_press": "250 a 450 N/m", "mat": "Carbeto de Tungstênio / Cerâmica"}
-    else: # Calandra / Enroladeira
+    else:
         return {"ang_min": 25, "ang_max": 32, "press_max": 300, "ref_ang": "25° a 32°", "ref_press": "200 a 300 N/m", "mat": "Aço Inox / Cerâmica"}
 
 regras = obter_regras_engenharia(grupo_posicao)
 
-# EXIBIÇÃO DE PARÂMETROS PADRÃO
 st.subheader(f"📍 Posição Selecionada: {posicao_detalhada}")
 col_a, col_b, col_c = st.columns(3)
-col_a.metric("Ângulo Tolera (Range Max)", regras["ref_ang"])
+col_a.metric("Ângulo Tolerado (Max)", regras["ref_ang"])
 col_b.metric("Pressão Limite Máxima", regras["ref_press"])
 col_c.metric("Material Indicado", regras["mat"])
 
 st.divider()
 
-# 3. VALIDAÇÃO DE ÂNGULO E PRESSÃO EM CAMPO
+# AFERIÇÃO E VALIDAÇÃO DE PARÂMETROS
 st.subheader("⚙️ Aferição de Ângulo e Pressão Ajustados")
-
 col_input1, col_input2 = st.columns(2)
 
 with col_input1:
@@ -104,7 +164,6 @@ with col_input1:
 with col_input2:
     pressao_ajustada = st.number_input("Pressão Real Aplicada (N/m)", value=200.0, step=10.0)
 
-# LÓGICA DE DETECÇÃO DE DESVIO / ALERTA
 fora_do_range_angulo = (angulo_ajustado < regras["ang_min"]) or (angulo_ajustado > regras["ang_max"])
 fora_do_range_pressao = pressao_ajustada > regras["press_max"]
 necessita_aprovacao = fora_do_range_angulo or fora_do_range_pressao
@@ -113,43 +172,37 @@ aprovador_nome = ""
 if necessita_aprovacao:
     st.markdown(f"""
     <div class="alert-box">
-        <h4 style="color: #C62828; margin-top:0px;">⚠️ ATENÇÃO: PARÂMETROS FORA DA TABELA DE TOLERÂNCIA DE ENGENHARIA!</h4>
-        <p>O ângulo configurado (<b>{angulo_ajustado}°</b>) ou a pressão (<b>{pressao_ajustada} N/m</b>) ultrapassam os limites padrão para esta seção ({regras['ref_ang']} / {regras['ref_press']}).</p>
-        <p><b>A gravação na planilha requer APROVAÇÃO OBRIGATÓRIA do Gestor Vogon ou do Cliente responsável.</b></p>
+        <h4 style="color: #C62828; margin-top:0px;">⚠️ ATENÇÃO: PARÂMETROS FORA DA TABELA DE ENGENHARIA!</h4>
+        <p>O ângulo ({angulo_ajustado}°) ou pressão ({pressao_ajustada} N/m) excedem os limites da seção.</p>
+        <p><b>A gravação exige a APROVAÇÃO do Gestor Vogon ou do Cliente responsável.</b></p>
     </div>
     """, unsafe_allow_html=True)
     
-    aprovador_nome = st.text_input("👤 Nome e Cargo do Aprovador (Cliente ou Gestor):", help="Ex: Eng. Carlos - Gerente de Manutenção Klabin")
+    # Se o usuário logado for Gestor ou Cliente, ele pode auto-aprovar
+    if usr['perfil'] in ['gestor', 'cliente']:
+        aprovador_nome = f"{usr['nome']} ({usr['cargo']}) - Auto-aprovado via Login"
+        st.success(f"✅ **Aprovação Automática:** Logado como **{aprovador_nome}**")
+    else:
+        aprovador_nome = st.text_input("👤 Nome e Cargo do Aprovador Responsável:")
 else:
     st.success("✅ **Parâmetros Operacionais Válidos:** Dentro da faixa de tolerância autorizada.")
 
 st.divider()
 
-# 4. ESPECIFICAÇÃO DA LÂMINA INSTALADA
+# ESPECIFICAÇÃO DE LÂMINAS
 st.subheader("🔪 Especificação Técnica da Lâmina Instalada")
-
 c_lam1, c_lam2 = st.columns(2)
 
 with c_lam1:
-    lamina_nome = st.text_input("Modelo / Código da Lâmina Instalada", value="Vogon Inox-Precision")
-    lamina_material = st.selectbox(
-        "Material da Lâmina Instalada",
-        ["Aço Inox 304/316L", "Aço Carbono Temperado", "Bronze Fosforoso", "Sintética / UHMW", "Fibra de Vidro", "Fibra de Carbono", "Carbeto de Tungstênio / Cerâmica", "Outro"]
-    )
+    lamina_nome = st.text_input("Modelo / Código da Lâmina", value="Vogon Inox-Precision")
+    lamina_material = st.selectbox("Material da Lâmina", ["Aço Inox 304/316L", "Aço Carbono Temperado", "Bronze Fosforoso", "Sintética / UHMW", "Fibra de Vidro", "Fibra de Carbono", "Carbeto de Tungstênio / Cerâmica", "Outro"])
 
 with c_lam2:
-    tipo_rebitagem = st.selectbox(
-        "Tipo de Rebitagem",
-        ["DST", "KF", "DSTF", "KF Frontal", "A1", "Conformatic", "Sem Rebites", "Outros"]
-    )
-    if tipo_rebitagem == "Outros":
-        rebitagem_detalhe = st.text_input("Especifique o Tipo de Rebitagem:", value="Padrão Especial Vogon")
-    else:
-        rebitagem_detalhe = tipo_rebitagem
+    tipo_rebitagem = st.selectbox("Tipo de Rebitagem", ["DST", "KF", "DSTF", "KF Frontal", "A1", "Conformatic", "Sem Rebites", "Outros"])
+    rebitagem_detalhe = st.text_input("Especifique a Rebitagem:", value="Padrão Especial Vogon") if tipo_rebitagem == "Outros" else tipo_rebitagem
 
-st.markdown("##### 📐 Dimensões Geométricas da Lâmina (em milímetros)")
+st.markdown("##### 📐 Dimensões Geométricas (mm)")
 c_dim1, c_dim2, c_dim3 = st.columns(3)
-
 with c_dim1:
     lam_largura = st.number_input("Largura (mm)", value=76.2, step=1.0)
 with c_dim2:
@@ -159,7 +212,7 @@ with c_dim3:
 
 st.divider()
 
-# REGISTRO FOTOGRÁFICO DE CAMPO
+# REGISTRO FOTOGRÁFICO
 st.subheader("📸 Fotos do Ajuste de Ângulos (LA / LC)")
 col1, col2 = st.columns(2)
 with col1:
@@ -171,7 +224,7 @@ with col2:
 
 st.divider()
 
-# CAMPOS DE DETALHAMENTO DA INTERVENÇÃO
+# DETALHES DO SERVIÇO
 st.subheader("📝 Detalhes do Serviço nesta Posição")
 c_f1, c_f2 = st.columns(2)
 with c_f1:
@@ -181,14 +234,12 @@ with c_f2:
     falta_fazer = st.text_area("Pendências / Falta Fazer:", value="Monitorar limpeza do tubo na próxima parada.")
     pecas_providenciar = st.text_area("Peças a Providenciar:", value="1x Kit de vedação de suporte.")
 
-# BOTÃO PARA ADICIONAR REGISTRO À PLANILHA DO DIA (COM VALIDAÇÃO DE BLOQUEIO)
+# SALVAR REGISTRO
 st.divider()
-
-# DESABILITA O BOTÃO SE HOUVER DESVIO SEM NOMINAR APROVADOR
 bloquear_botao = necessita_aprovacao and (len(aprovador_nome.strip()) == 0)
 
 if bloquear_botao:
-    st.warning("🔒 **Ação Bloqueada:** Preencha o campo **'Nome e Cargo do Aprovador'** acima para permitir a gravação desta intervenção.")
+    st.warning("🔒 **Ação Bloqueada:** Informe o **Aprovador Responsável** para gravar o parâmetro fora da tabela.")
 
 if st.button("➕ Salvar Registro desta Posição na Planilha do Dia", disabled=bloquear_botao):
     status_aprovacao_txt = f"APROVADO POR: {aprovador_nome}" if necessita_aprovacao else "DENTRO DO PADRÃO ENGENHARIA"
@@ -197,19 +248,16 @@ if st.button("➕ Salvar Registro desta Posição na Planilha do Dia", disabled=
         "Data": data_hoje.strftime("%d/%m/%Y"),
         "Cliente": cliente,
         "Máquina": maquina,
-        "Técnico": tecnico,
+        "Técnico Logado": usr['nome'],
         "Tipo Papel": tipo_papel,
         "Seção": grupo_posicao,
         "Posição Exata (Raspador)": posicao_detalhada,
-        "Ângulo Real Ajustado (°)": angulo_ajustado,
-        "Pressão Real Aplicada (N/m)": pressao_ajustada,
+        "Ângulo Real (°)" : angulo_ajustado,
+        "Pressão Real (N/m)": pressao_ajustada,
         "Status Tolerância": "FORA DO PADRÃO (APROVADO)" if necessita_aprovacao else "PADRÃO OK",
         "Aprovador Responsável": status_aprovacao_txt,
         "Lâmina Instalada": lamina_nome,
         "Material Lâmina": lamina_material,
-        "Largura (mm)": lam_largura,
-        "Espessura (mm)": lam_espessura,
-        "Comprimento (mm)": lam_comprimento,
         "Dimensão Total (LxExC mm)": f"{lam_largura} x {lam_espessura} x {lam_comprimento}",
         "Tipo Rebitagem": rebitagem_detalhe,
         "Serviço Realizado": servico_feito,
@@ -224,22 +272,19 @@ if st.button("➕ Salvar Registro desta Posição na Planilha do Dia", disabled=
     st.session_state['historico_intervencao'].append(registro)
     st.success(f"✅ Intervenção na posição **'{posicao_detalhada}'** gravada! Status: **{status_aprovacao_txt}**")
 
-# EXIBIÇÃO DA TABELA DO DIA E EXPORTAÇÃO EXCEL
+# GERAR E EXPORTAR PLANILHA EXCEL
 if len(st.session_state['historico_intervencao']) > 0:
     st.divider()
     st.subheader("📊 Histórico de Intervenções Acumuladas Hoje")
     
     df_historico = pd.DataFrame(st.session_state['historico_intervencao'])
     
-    # Exibição resumida na tela
-    colunas_visiveis = ["Data", "Cliente", "Máquina", "Posição Exata (Raspador)", "Ângulo Real Ajustado (°)", "Status Tolerância", "Aprovador Responsável", "Lâmina Instalada"]
+    colunas_visiveis = ["Data", "Cliente", "Máquina", "Posição Exata (Raspador)", "Ângulo Real (°)", "Status Tolerância", "Aprovador Responsável", "Lâmina Instalada"]
     st.dataframe(df_historico[colunas_visiveis], use_container_width=True)
 
-    # NOME DO ARQUIVO SEGUINDO O PADRÃO (por dia, por máquina, por cliente)
     data_str = data_hoje.strftime("%Y-%m-%d")
     nome_arquivo_excel = f"Vogon_{cliente.replace(' ', '_')}_{maquina.replace(' ', '_')}_{data_str}.xlsx"
 
-    # GERAR O ARQUIVO EXCEL EM MEMÓRIA
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_historico.to_excel(writer, index=False, sheet_name='Intervençoes_Vogon')
