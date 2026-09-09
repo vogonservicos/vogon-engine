@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import datetime
 import io
 import urllib.parse
-from fpdf import FPDF
 
 # URL da Logo Oficial Vogon Group
 LOGO_URL = "https://yata-apix-320e5167-9d0d-4143-a25a-28eeb06af758.s3-object.locaweb.com.br/e88068311e2a46c2a3e029206757eb75.png"
@@ -141,65 +140,6 @@ if st.sidebar.button("🚪 Sair do Sistema (Logout)", use_container_width=True):
     st.session_state['usuario_dados'] = None
     st.session_state['usuario_id'] = None
     st.rerun()
-
-# ==============================================================================
-# 📄 GERADOR DE PDF TIMBRADO VOGON
-# ==============================================================================
-def gerar_pdf_timbrado(reg):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # Cabeçalho Fiscais Vogon
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.set_text_color(14, 47, 86)
-    pdf.cell(0, 8, "VOGON GROUP LTDA", ln=True, align="C")
-    
-    pdf.set_font("Helvetica", "", 9)
-    pdf.set_text_color(80, 80, 80)
-    pdf.cell(0, 5, "CNPJ MATRIZ: 42.730.025/0001-90 | FILIAL: 42.730.025/0002-71", ln=True, align="C")
-    pdf.cell(0, 5, "Av. Guilherme George, 1364 - Jundiapeba, Mogi das Cruzes - SP | (11) 97637-8235", ln=True, align="C")
-    pdf.cell(0, 5, "WWW.VOGONGROUP.COM.BR", ln=True, align="C")
-    pdf.line(10, 32, 200, 32)
-    pdf.ln(8)
-    
-    # Título do Documento
-    pdf.set_font("Helvetica", "B", 13)
-    pdf.set_text_color(14, 47, 86)
-    pdf.cell(0, 7, f"RELATORIO TECNICO DE INTERVENCAO - {reg['Cliente']}", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 6, f"Data: {reg['Data']} | Maquina: {reg['Maquina']} | Tecnico: {reg['Tecnico Logado']}", ln=True)
-    pdf.cell(0, 6, f"Posicao Avaliada: {reg['Posicao Exata (Raspador)']} ({reg['Tipo Papel']})", ln=True)
-    pdf.ln(4)
-    
-    # Parametros
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 6, "1. PARAMETROS TECNICOS DE RASPAGEM:", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 5, f" - Angulo Ajustado: {reg['Angulo Real (°)']} deg | Pressao Aplicada: {reg['Pressao Real (N/m)']} N/m", ln=True)
-    pdf.cell(0, 5, f" - Status de Tolerancia: {reg['Status Tolerancia']}", ln=True)
-    pdf.cell(0, 5, f" - Responsavel Aprovacao: {reg['Aprovador Responsavel']}", ln=True)
-    pdf.ln(4)
-    
-    # Lamina
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 6, "2. ESPECIFICACAO DA LAMINA INSTALADA:", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 5, f" - Modelo/Material: {reg['Lamina Instalada']} ({reg['Material Lamina']})", ln=True)
-    pdf.cell(0, 5, f" - Dimensoes (LxExC): {reg['Dimensao Total (LxExC mm)']} mm", ln=True)
-    pdf.cell(0, 5, f" - Tipo de Rebitagem: {reg['Tipo Rebitagem']}", ln=True)
-    pdf.ln(4)
-
-    # Servico e Peças
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 6, "3. DETALHAMENTO DA INTERVENCAO:", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 5, f"Servico Realizado: {reg['Servico Realizado']}")
-    pdf.multi_cell(0, 5, f"Pecas Substituidas: {reg['Pecas Substituidas']}")
-    pdf.multi_cell(0, 5, f"Pendencias: {reg['Pendencias']}")
-    pdf.multi_cell(0, 5, f"Pecas a Providenciar: {reg['Pecas a Providenciar']}")
-    
-    return bytes(pdf.output())
 
 # ==============================================================================
 # ⚙️ CORPO PRINCIPAL DO APP
@@ -402,17 +342,16 @@ _Gerado via Vogon Doctoring Specialist App_"""
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 📂 CENTRAL DE GESTÃO & BOTÕES DE AÇÃO DOS GESTORES
+# 📂 CENTRAL DE GESTÃO & HISTÓRICO
 # ==============================================================================
 if len(st.session_state['historico_intervencao']) > 0:
     st.divider()
     
-    # PAINEL EXCLUSIVO PARA GESTORES
     if usr['perfil'] in ['gestor', 'gestor_master']:
         st.markdown("""
         <div class="manager-box">
             <h3 style="color: #0E2F56; margin-top: 0px;">📂 Painel de Ação da Gestão Vogon</h3>
-            <p style="font-size: 13px; color: #333;">Como Gestor, você tem acesso imediato para exportar os documentos completos (PDF e Excel) acumulados no dia.</p>
+            <p style="font-size: 13px; color: #333;">Acesso exclusivo para exportação da planilha consolidada das intervenções do dia.</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -425,32 +364,16 @@ if len(st.session_state['historico_intervencao']) > 0:
     data_str = data_hoje.strftime("%Y-%m-%d")
     nome_base = f"{cliente.replace(' ', '_')}_{maquina.replace(' ', '_')}_{data_str}"
 
-    col_btn1, col_btn2 = st.columns(2)
+    # GERAR PLANILHA EXCEL
+    output_excel = io.BytesIO()
+    with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+        df_historico.to_excel(writer, index=False, sheet_name='Intervençoes_Vogon')
+    excel_bytes = output_excel.getvalue()
 
-    with col_btn1:
-        # GERAR PLANILHA EXCEL
-        output_excel = io.BytesIO()
-        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-            df_historico.to_excel(writer, index=False, sheet_name='Intervençoes_Vogon')
-        excel_bytes = output_excel.getvalue()
-
-        st.download_button(
-            label=f"📊 Baixar Planilha Excel ({nome_base}.xlsx)",
-            data=excel_bytes,
-            file_name=f"{nome_base}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-
-    with col_btn2:
-        # GERAR PDF TIMBRADO DA ÚLTIMA INTERVENÇÃO
-        ultimo_registro = st.session_state['historico_intervencao'][-1]
-        pdf_bytes = gerar_pdf_timbrado(ultimo_registro)
-
-        st.download_button(
-            label=f"📄 Baixar Relatório PDF Timbrado ({nome_base}.pdf)",
-            data=pdf_bytes,
-            file_name=f"{nome_base}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+    st.download_button(
+        label=f"📊 Baixar Planilha Excel Oficial ({nome_base}.xlsx)",
+        data=excel_bytes,
+        file_name=f"{nome_base}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
