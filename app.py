@@ -5,7 +5,7 @@ import numpy as np
 # Configuração da página Vogon no iOS/Navegador
 st.set_page_config(
     page_title="Vogon Group - Calculadora de Chuveiros",
-    page_icon="logo.png"#https://share.google/dF0WIb68fecTkdZgS
+    page_icon="logo.png"https://share.google/dF0WIb68fecTkdZgS
     layout="wide"
 )
 
